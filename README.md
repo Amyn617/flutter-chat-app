@@ -67,6 +67,71 @@ L'application utilise l'architecture **BLoC** pour séparer la logique métier d
 UI (Widgets) → Events → BLoC → States → UI (Rebuild)
 ```
 
+### Structure du projet
+
+```mermaid
+graph TD
+    UI["UI Layer: Screens & Widgets"]
+    Bloc["BLoC Layer: ConversationBloc"]
+    Data["Data Layer: Mock Conversations & Messages"]
+
+    UI -->|1. Dispatch Event tap, send message| Bloc
+    Bloc -->|2. Handle Event & State Logic| Bloc
+    Bloc -->|3. Access or Update Data| Data
+    Data -->|4. Return Data| Bloc
+    Bloc -->|5. Emit New State| UI
+    UI -->|6. Rebuild UI Based on State| UI
+```
+
+### Diagramme de classe du projet
+
+```mermaid
+classDiagram
+    class Conversation {
+        +id: String
+        +contactName: String
+        +lastMessage: String
+        +timestamp: DateTime
+    }
+
+    class Message {
+        +id: String
+        +conversationId: String
+        +content: String
+        +isMe: bool
+        +timestamp: DateTime
+    }
+
+    class ConversationEvent {
+        <<abstract>>
+        note "Examples: LoadConversations, SendMessage, ReceiveMessage"
+    }
+
+    class ConversationState {
+        <<abstract>>
+        note "Examples: ConversationInitial, ConversationLoading, ConversationLoaded (holds conversations and messages)"
+    }
+    class ConversationLoaded {
+      +List~Conversation~ conversations
+      +Map~String, List~Message~~ messagesByConversationId
+      +String selectedConversationId
+    }
+    ConversationLoaded --|> ConversationState
+
+
+    class ConversationBloc {
+      // Manages ConversationState
+      // Responds to ConversationEvents
+    }
+
+    ConversationBloc ..> ConversationEvent : handles
+    ConversationBloc --o ConversationState : emits & manages
+
+    Conversation "1" -- "*" Message : (related via conversationId)
+
+    note "Key models (Conversation, Message), BLoC states, and BLoC events extend Equatable for value comparison."
+```
+
 ### 📊 États du BLoC (`ConversationState`)
 
 Les états représentent les différentes phases de l'interface utilisateur. Ils sont **immutables** et utilisent **Equatable** pour des comparaisons optimisées.
@@ -119,7 +184,7 @@ context.read<ConversationBloc>().add(
 // 4. Émet un nouvel état ConversationLoaded
 ```
 
-## Fonctionnalités Implémentées
+## 📱 Fonctionnalités Détaillées
 
 ### 1. Écran Liste des Conversations
 
@@ -131,12 +196,11 @@ Cet écran est le point d'entrée principal de l'application après le lancement
   - Le **dernier message** échangé dans cette conversation.
   - L'heure du dernier message.
 - **Badge pour les messages non lus** :
-  - Un indicateur visuel (badge) est affiché à côté d'une conversation s'il y a des messages non lus. (Note : Cela nécessiterait un champ `unreadCount` dans le modèle `Conversation` et une logique de mise à jour dans le BLoC lors de la réception de messages si la conversation n'est pas activement visualisée).
+  - Un indicateur visuel (badge) est affiché à côté d'une conversation s'il y a des messages non lus.
 - **Navigation vers l'écran de conversation détaillé** :
   - Un appui (tap) sur une conversation dans la liste navigue l'utilisateur vers l'écran de discussion détaillé pour cette conversation spécifique. L'événement `ConversationSelected` est envoyé au BLoC.
 - **Possibilité de créer une nouvelle conversation** :
   - Un bouton d'action flottant (FAB) ou une icône dans l'AppBar permet à l'utilisateur d'initier la création d'une nouvelle conversation.
-  - Cela pourrait mener à un écran de sélection de contact (non implémenté dans cette version simple) ou directement à un nouvel écran de chat vide si le contact est prédéfini ou créé dynamiquement.
 
 ### 2. Écran de Conversation Détaillé
 
@@ -149,105 +213,68 @@ Cet écran s'affiche lorsque l'utilisateur sélectionne une conversation.
   - Un champ de texte en bas de l'écran permet à l'utilisateur de taper son message.
   - Un bouton "Envoyer" déclenche l'événement `SendMessage` avec le contenu du champ et l'ID de la conversation actuelle.
 - **Messages différenciés visuellement** :
-  - Les messages envoyés par l'utilisateur (`isMe: true`) sont alignés à droite et stylisés différemment (par exemple, avec une couleur de bulle spécifique).
-  - Les messages reçus du contact (`isMe: false`) sont alignés à gauche avec un style distinct pour une identification facile.
+  - Les messages envoyés par l'utilisateur (`isMe: true`) sont alignés à droite et stylisés différemment.
+  - Les messages reçus du contact (`isMe: false`) sont alignés à gauche avec un style distinct.
 
-## Navigation entre les Écrans
+### 3. Navigation entre les Écrans
 
 La navigation dans l'application est gérée principalement par `Navigator` de Flutter :
 
-1.  **Démarrage** : L'application démarre sur `ConversationListScreen`.
-2.  **De `ConversationListScreen` à `ChatScreen`** :
-    - Lorsqu'un utilisateur appuie sur un élément de la liste des conversations, `Navigator.push()` est appelé.
-    - L'ID de la conversation et le nom du contact sont passés en arguments à `ChatScreen`.
-    - Simultanément, l'événement `ConversationSelected(conversationId)` est envoyé au `ConversationBloc` pour que l'état `ConversationLoaded` reflète quelle conversation est active, permettant à `ChatScreen` d'afficher les messages pertinents.
-3.  **Retour de `ChatScreen` à `ConversationListScreen`** :
-    - Le bouton "retour" de l'AppBar de `ChatScreen` (ou le bouton retour physique/gestuel du téléphone) utilise `Navigator.pop()` pour revenir à l'écran précédent (`ConversationListScreen`).
+1. **Démarrage** : L'application démarre sur `ConversationListScreen`.
+2. **De `ConversationListScreen` à `ChatScreen`** :
+   - Lorsqu'un utilisateur appuie sur un élément de la liste des conversations, `Navigator.push()` est appelé.
+   - L'ID de la conversation et le nom du contact sont passés en arguments à `ChatScreen`.
+   - Simultanément, l'événement `ConversationSelected(conversationId)` est envoyé au `ConversationBloc`.
+3. **Retour de `ChatScreen` à `ConversationListScreen`** :
+   - Le bouton "retour" de l'AppBar utilise `Navigator.pop()` pour revenir à l'écran précédent.
 
-## Possibilité de Créer une Nouvelle Conversation
+### 4. Création d'une Nouvelle Conversation
 
-Bien que la logique de sélection de contact ne soit pas entièrement détaillée dans cette version de base, la création d'une nouvelle conversation est envisagée comme suit :
+1. **Initiation** : L'utilisateur appuie sur un bouton "Nouvelle Conversation" (FAB) sur l'`ConversationListScreen`.
+2. **Saisie du Contact** : L'utilisateur saisit le nom du contact dans un formulaire de validation.
+3. **Création dans le BLoC** :
+   - Un événement `CreateConversation(contactName)` est envoyé au BLoC.
+   - Le BLoC crée une nouvelle instance de `Conversation` et l'ajoute à la liste.
+   - Il initialise également une liste de messages vide pour cette nouvelle conversation.
+4. **Navigation** : L'application peut naviguer vers le `ChatScreen` pour cette conversation nouvellement créée.
 
-1.  **Initiation** : L'utilisateur appuie sur un bouton "Nouvelle Conversation" (par exemple, un FAB) sur l'`ConversationListScreen`.
-2.  **(Optionnel) Sélection de Contact** : L'utilisateur serait dirigé vers une liste de contacts ou une interface de recherche pour choisir avec qui commencer une nouvelle discussion.
-3.  **Création dans le BLoC** :
-    - Un nouvel événement (par exemple, `CreateNewConversation(contactId)`) serait envoyé au BLoC.
-    - Le BLoC créerait une nouvelle instance de `Conversation` (potentiellement avec un dernier message vide ou un message initial) et l'ajouterait à la liste des conversations dans son état. Il initialiserait également une liste de messages vide pour cette nouvelle conversation.
-    - L'identifiant de cette nouvelle conversation serait ensuite utilisé pour la navigation.
-4.  **Navigation** : L'application naviguerait vers le `ChatScreen` pour cette conversation nouvellement créée, qui apparaîtrait initialement vide ou avec un message de bienvenue. L'événement `ConversationSelected` serait également déclenché pour cette nouvelle conversation.
+## 🚀 Installation et Configuration
 
-Dans la version actuelle simulée, on pourrait directement ajouter une nouvelle conversation aux `mockConversations` et recharger, ou adapter le BLoC pour ajouter dynamiquement une nouvelle conversation et ses messages.
+```bash
+# Cloner le repository
+git clone <repository-url>
 
-### Structure du projet
+# Naviguer dans le dossier
+cd chat_app
 
-```mermaid
-graph TD
-    subgraph "User Interface (UI)"
-        Screens["Flutter Widgets (Screens & Inputs)"]
-    end
+# Installer les dépendances
+flutter pub get
 
-    subgraph "Business Logic (BLoC)"
-        Bloc["ConversationBloc"]
-    end
-
-    subgraph "Data Layer"
-        DataSource["Mock Data (Conversations & Messages)"]
-    end
-
-    Screens -- "1. Dispatches Events (e.g., User Taps, Sends Message)" --> Bloc
-    Bloc -- "2. Processes Event Logic" --> Bloc
-    Bloc -- "3. Accesses/Updates (Simulated)" --> DataSource
-    DataSource -- "Provides Data" --> Bloc
-    Bloc -- "4. Emits New State (e.g., ConversationLoaded)" --> Screens
-    Screens -- "5. Rebuilds based on State" --> Screens
+# Lancer l'application
+flutter run
 ```
 
-### Diagramme de classe du projet
+## 📚 Guide d'Utilisation
 
-```mermaid
-classDiagram
-    class Conversation {
-        +id: String
-        +contactName: String
-        +lastMessage: String
-        +timestamp: DateTime
-    }
+1. **Démarrage** : L'application s'ouvre sur la liste des conversations
+2. **Navigation** : Tapez sur une conversation pour ouvrir le chat
+3. **Envoi de messages** : Utilisez le champ de saisie en bas de l'écran
+4. **Nouvelle conversation** : Tapez sur le bouton "+" pour créer une conversation
+5. **Test de réception** : Utilisez le bouton message dans l'AppBar pour simuler des messages entrants
 
-    class Message {
-        +id: String
-        +conversationId: String
-        +content: String
-        +isMe: bool
-        +timestamp: DateTime
-    }
+## 📖 Documentation Technique
 
-    class ConversationEvent {
-        <<abstract>>
-        note "Examples: LoadConversations, SendMessage, ReceiveMessage"
-    }
+- **Architecture** : BLoC Pattern avec separation des responsabilités
+- **Gestion d'état** : Immutable states avec Equatable
+- **Navigation** : Flutter Navigator 2.0
+- **UI/UX** : Material Design 3 avec thème personnalisé
 
-    class ConversationState {
-        <<abstract>>
-        note "Examples: ConversationInitial, ConversationLoading, ConversationLoaded (holds conversations and messages)"
-    }
-    class ConversationLoaded {
-      +List~Conversation~ conversations
-      +Map~String, List~Message~~ messagesByConversationId
-      +String selectedConversationId
-    }
-    ConversationLoaded --|> ConversationState
+## 🤝 Contribution
 
+Les contributions sont les bienvenues ! N'hésitez pas à :
 
-    class ConversationBloc {
-      // Manages ConversationState
-      // Responds to ConversationEvents
-    }
-
-    ConversationBloc ..> ConversationEvent : handles
-    ConversationBloc --o ConversationState : emits & manages
-
-    Conversation "1" -- "*" Message : (related via conversationId)
-
-    note "Key models (Conversation, Message), BLoC states, and BLoC events extend Equatable for value comparison."
-
-```
+1. Fork le projet
+2. Créer une branche pour votre fonctionnalité
+3. Committer vos changements
+4. Pusher vers la branche
+5. Ouvrir une Pull Request
