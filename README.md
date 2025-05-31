@@ -80,13 +80,14 @@ graph TD
     UI["UI Layer: Screens & Widgets"]
     Bloc["BLoC Layer: ConversationBloc"]
     Data["Data Layer: Mock Conversations & Messages"]
+    Rebuild["UI Rebuild"]
 
-    UI -->|1. Dispatch Event tap, send message| Bloc
-    Bloc -->|2. Handle Event & State Logic| Bloc
-    Bloc -->|3. Access or Update Data| Data
-    Data -->|4. Return Data| Bloc
-    Bloc -->|5. Emit New State| UI
-    UI -->|6. Rebuild UI Based on State| UI
+    UI -->|Dispatch Event| Bloc
+    Bloc -->|Handle Logic| Bloc
+    Bloc -->|Access/Update Data| Data
+    Data -->|Return Data| Bloc
+    Bloc -->|Emit State| UI
+    UI -->|Trigger Rebuild| Rebuild
 ```
 
 ### Diagramme de classe du projet
