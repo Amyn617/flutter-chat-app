@@ -1,5 +1,11 @@
 # 💬 Application de Chat Flutter avec Architecture BLoC
 
+![4 - tester recevoir un message de test](https://github.com/user-attachments/assets/7b4d569a-33bf-45e2-a658-6bd626bcd50e)
+![3 - Création dune conversation](https://github.com/user-attachments/assets/7a7c2bd5-b8c4-42a3-9029-61789deeb1da)
+![2 - interieur dune conversation et envoi de message](https://github.com/user-attachments/assets/dfb5794d-6833-4ec5-a734-49b2bbad7757)
+![1 - tous les conversations](https://github.com/user-attachments/assets/d319a9f9-ff5c-4f71-9cab-5df164b69789)
+
+
 ## 📋 Table des Matières
 
 - [Vue d'ensemble](#vue-densemble)
